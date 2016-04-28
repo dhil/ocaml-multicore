@@ -251,14 +251,24 @@ value* caml_shared_try_alloc(struct caml_heap_state* local, mlsize_t wosize, tag
   return p;
 }
 
+struct pool* caml_pool_of_shared_block(value v)
+{
+  Assert (Is_block(v) && !Is_minor(v));
+  mlsize_t whsize = Whsize_wosize(Wosize_val(v));
+  if (whsize > 0 && whsize <= SIZECLASS_MAX) {
+    return (pool*)((uintnat)v &~(POOL_WSIZE * sizeof(value) - 1));
+  } else {
+    return 0;
+  }
+}
+
 struct domain* caml_owner_of_shared_block(value v) {
   Assert (Is_block(v) && !Is_minor(v));
   mlsize_t whsize = Whsize_wosize(Wosize_val(v));
   Assert (whsize > 0); /* not an atom */
   if (whsize <= SIZECLASS_MAX) {
     /* FIXME: ORD: if we see the object, we must see the owner */
-    pool* p = (pool*)((uintnat)v &~(POOL_WSIZE * sizeof(value) - 1));
-    return p->owner;
+    return caml_pool_of_shared_block(v)->owner;
   } else {
     large_alloc* a = (large_alloc*)(Hp_val(v) - LARGE_ALLOC_HEADER_SZ);
     return a->owner;

@@ -9,6 +9,7 @@
 #include "globroots.h"
 #include "domain.h"
 #include "fiber.h"
+#include "addrmap.h"
 
 #define MARK_STACK_SIZE (1 << 20)
 
@@ -76,10 +77,12 @@ static uintnat default_slice_budget() {
   //return 1ll << 50;
 }
 
+static void mark_stack_prune();
+
 static void mark_stack_push(value v) {
   Assert(Is_block(v));
   if (caml_mark_stack_count >= MARK_STACK_SIZE)
-    caml_fatal_error("mark stack overflow");
+    mark_stack_prune();
   caml_mark_stack[caml_mark_stack_count++] = v;
 }
 
@@ -216,3 +219,95 @@ void caml_empty_mark_stack () {
   stat_blocks_marked = 0;
 }
 
+
+
+struct pool_count {
+  struct pool* pool;
+  int occurs;
+};
+
+static int pool_count_cmp(const void* a, const void* b)
+{
+  const struct pool_count* p = a;
+  const struct pool_count* q = b;
+  return p->occurs - q->occurs;
+}
+
+#define Prune_table_max 1000
+static void mark_stack_prune ()
+{
+  struct addrmap t = ADDRMAP_INIT;
+  int count = 0, entry;
+  addrmap_iterator i;
+  for (entry = 0; entry < caml_mark_stack_count; entry++) {
+    struct pool* pool = caml_pool_of_shared_block(caml_mark_stack[entry]);
+    if (!pool) continue;
+    value p = (value)pool;
+    if (caml_addrmap_contains(&t, p)) {
+      (*caml_addrmap_insert_pos(&t, p)) ++;
+    } else if (count < Prune_table_max) {
+      *caml_addrmap_insert_pos(&t, p) = 1;
+      count++;
+    } else {
+      /* decrease all entries by 1 */
+      struct addrmap s = ADDRMAP_INIT;
+      int scount = 0;
+      for (i = caml_addrmap_iterator(&t);
+           caml_addrmap_iter_ok(&t, i);
+           i = caml_addrmap_next(&t, i)) {
+        value k = caml_addrmap_iter_key(&t, i);
+        value v = caml_addrmap_iter_value(&t, i);
+        if (v > 1) {
+          *caml_addrmap_insert_pos(&s, k) = v - 1;
+          scount++;
+        }
+      }
+      caml_addrmap_clear(&t);
+      t = s;
+      count = scount;
+    }
+  }
+
+  struct pool_count* pools = caml_stat_alloc(count * sizeof(struct pool_count));
+  int pos = 0;
+  for (i = caml_addrmap_iterator(&t);
+       caml_addrmap_iter_ok(&t, i);
+       i = caml_addrmap_next(&t, i)) {
+    struct pool_count* p = &pools[pos++];
+    p->pool = (struct pool*)caml_addrmap_iter_key(&t, i);
+    p->occurs = (int)caml_addrmap_iter_value(&t, i);
+  }
+  Assert(pos == count);
+  caml_addrmap_clear(&t);
+
+
+  qsort(pools, count, sizeof(struct pool_count), &pool_count_cmp);
+
+  int start = count, total = 0;
+  int desired_total = caml_mark_stack_count / 10;
+  while (start > 0 && total < desired_total) {
+    start--;
+    total += pools[start].occurs;
+  }
+
+  caml_gc_log("Mark stack overflow. Removing %d pools containing %.1f%% of stack.",
+              count-start, 100. * (double)total / (double)caml_mark_stack_count);
+
+
+  for (; start < count; start++) {
+    *caml_addrmap_insert_pos(&t, (value)pools[start].pool) = 1;
+  }
+  int out = 0;
+  for (entry = 0; entry < caml_mark_stack_count; entry++) {
+    value v = caml_mark_stack[entry];
+    if (caml_addrmap_lookup(&t, v)) {
+      caml_mark_stack[out++] = v;
+    }
+  }
+  caml_mark_stack_count = out;
+
+
+  
+
+  caml_fatal_error("nope");
+}

@@ -2,7 +2,7 @@
 #define CAML_SHARED_HEAP_H
 
 struct caml_heap_state;
-
+struct pool;
 
 struct caml_heap_state* caml_init_shared_heap();
 
@@ -10,6 +10,7 @@ value* caml_shared_try_alloc(struct caml_heap_state*, mlsize_t wosize, tag_t tag
 
 uintnat caml_heap_size(struct caml_heap_state*);
 
+struct pool* caml_pool_of_shared_block(value v);
 struct domain* caml_owner_of_shared_block(value v);
 
 void caml_shared_unpin(value v);
