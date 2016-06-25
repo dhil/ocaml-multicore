@@ -64,7 +64,7 @@ and add_package_type bv (lid, l) =
 and add_effect_type bv eft =
   match eft with
   | None -> ()
-  | Some desc -> List.iter add desc.pefd_constrs
+  | Some desc -> List.iter (add bv) desc.pefd_constrs
 
 let add_opt add_fn bv = function
     None -> ()
