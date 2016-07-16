@@ -1813,6 +1813,7 @@ and type_expect_ ?in_function env sexp ty_expected eff_expected =
           let name = Path.name ~paren:Oprint.parenthesized_ident path in
           Stypes.record (Stypes.An_ident (loc, name, annot))
         end;
+        let ty = instance env (open_effects_covariant env desc.val_type) in
         rue {
           exp_desc =
             begin match desc.val_kind with
@@ -1839,7 +1840,7 @@ and type_expect_ ?in_function env sexp ty_expected eff_expected =
                 Texp_ident(path, lid, desc)
           end;
           exp_loc = loc; exp_extra = [];
-          exp_type = instance env desc.val_type;
+          exp_type = ty;
           exp_attributes = sexp.pexp_attributes;
           exp_env = env }
       end
