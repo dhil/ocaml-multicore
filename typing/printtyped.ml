@@ -145,6 +145,11 @@ let attributes i ppf l =
     )
     l
 
+let fmt_poly_var ppf x =
+  match x with
+  | (v, Type) -> fprintf ppf "'%s" v
+  | (v, Effect) -> fprintf ppf "!%s" v
+
 let rec core_type i ppf x =
   line i ppf "core_type %a\n" fmt_location x.ctyp_loc;
   attributes i ppf x.ctyp_attributes;
@@ -184,9 +189,10 @@ let rec core_type i ppf x =
   | Ttyp_alias (ct, s) ->
       line i ppf "Ptyp_alias \"%s\"\n" s;
       core_type i ppf ct;
-  | Ttyp_poly (sl, ct) ->
+  | Ttyp_poly (pvl, ct) ->
       line i ppf "Ptyp_poly%a\n"
-        (fun ppf -> List.iter (fun x -> fprintf ppf " '%s" x)) sl;
+        (fun ppf -> List.iter (fun pv -> fprintf ppf " %a" fmt_poly_var pv))
+        pvl;
       core_type i ppf ct;
   | Ttyp_package { pack_path = s; pack_fields = l } ->
       line i ppf "Ptyp_package %a\n" fmt_path s;

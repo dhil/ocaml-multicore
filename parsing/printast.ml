@@ -131,6 +131,11 @@ let string_loc i ppf s = line i ppf "%a\n" fmt_string_loc s;;
 let bool i ppf x = line i ppf "%s\n" (string_of_bool x);;
 let label i ppf x = line i ppf "label=\"%s\"\n" x;;
 
+let fmt_poly_var ppf x =
+  match x with
+  | (v, Type) -> fprintf ppf "'%s" v
+  | (v, Effect) -> fprintf ppf "!%s" v
+
 let rec core_type i ppf x =
   line i ppf "core_type %a\n" fmt_location x.ptyp_loc;
   attributes i ppf x.ptyp_attributes;
@@ -170,9 +175,10 @@ let rec core_type i ppf x =
   | Ptyp_alias (ct, s) ->
       line i ppf "Ptyp_alias \"%s\"\n" s;
       core_type i ppf ct;
-  | Ptyp_poly (sl, ct) ->
+  | Ptyp_poly (pvl, ct) ->
       line i ppf "Ptyp_poly%a\n"
-        (fun ppf -> List.iter (fun x -> fprintf ppf " '%s" x)) sl;
+        (fun ppf ->
+          List.iter (fun pv -> fprintf ppf " %a" fmt_poly_var pv)) pvl;
       core_type i ppf ct;
   | Ptyp_package (s, l) ->
       line i ppf "Ptyp_package %a\n" fmt_longident_loc s;

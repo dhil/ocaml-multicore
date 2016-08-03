@@ -214,6 +214,11 @@ class printer  ()= object(self:'self)
 
   method constant_string f s = pp f "%S" s
   method tyvar f str = pp f "'%s" str
+  method poly_var f pv =
+    match pv with
+    | (str, Type) -> pp f "'%s" str
+    | (str, Effect) -> pp f "!%s" str
+
   method string_quot f x = pp f "`%s" x
 
           (* c ['a,'b] *)
@@ -272,7 +277,7 @@ class printer  ()= object(self:'self)
               | [] -> ()
               | _ ->
                   pp f "%a@;.@;"
-                    (self#list self#tyvar ~sep:"@;")  l)
+                    (self#list self#poly_var ~sep:"@;")  l)
               l)
           sl  self#core_type ct
     | _ -> pp f "@[<2>%a@]" self#core_type1 x
