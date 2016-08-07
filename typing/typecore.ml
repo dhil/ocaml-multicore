@@ -977,7 +977,9 @@ let rec type_pat ~constrs ~labels ~no_existentials ~mode ~env ~allow_exn
   | Ppat_constraint({ppat_desc=Ppat_var name; ppat_loc=lloc},
                     ({ptyp_desc=Ptyp_poly _} as sty)) ->
       (* explicitly polymorphic type *)
-      let cty, force = Typetexp.transl_simple_type_delayed !env sty in
+      let cty, force =
+        Typetexp.transl_simple_type_delayed !env (Some Stype) sty
+      in
       let ty = cty.ctyp_type in
       unify_pat_types lloc !env ty expected_ty;
       pattern_force := force :: !pattern_force;
@@ -1234,7 +1236,9 @@ let rec type_pat ~constrs ~labels ~no_existentials ~mode ~env ~allow_exn
       (* Separate when not already separated by !principal *)
       let separate = true in
       if separate then begin_def();
-      let cty, force = Typetexp.transl_simple_type_delayed !env sty in
+      let cty, force =
+        Typetexp.transl_simple_type_delayed !env (Some Stype) sty
+      in
       let ty = cty.ctyp_type in
       let ty, expected_ty' =
         if separate then begin
@@ -1745,8 +1749,10 @@ let self_coercion = ref ([] : (Path.t * Location.t list ref) list)
 (* Helpers for packaged modules. *)
 let create_package_type loc env (p, l) =
   let s = !Typetexp.transl_modtype_longident loc env p in
-  let fields = List.map (fun (name, ct) ->
-                           name, Typetexp.transl_simple_type env false ct) l in
+  let fields =
+    List.map (fun (name, ct) ->
+        name, Typetexp.transl_simple_type env false (Some Stype) ct) l
+  in
   let ty = newty (Tpackage (s,
                     List.map fst l,
                    List.map (fun (_, cty) -> cty.ctyp_type) fields))
@@ -2450,7 +2456,7 @@ and type_expect_ ?in_function env sexp ty_expected eff_expected =
   | Pexp_constraint (sarg, sty) ->
       let separate = true in (* always separate, 1% slowdown for lablgtk *)
       if separate then begin_def ();
-      let cty = Typetexp.transl_simple_type env false sty in
+      let cty = Typetexp.transl_simple_type env false (Some Stype) sty in
       let ty = cty.ctyp_type in
       let (arg, ty') =
         if separate then begin
@@ -2477,7 +2483,7 @@ and type_expect_ ?in_function env sexp ty_expected eff_expected =
         match sty with
         | None ->
             let (cty', force) =
-              Typetexp.transl_simple_type_delayed env sty'
+              Typetexp.transl_simple_type_delayed env (Some Stype) sty'
             in
             let ty' = cty'.ctyp_type in
             if separate then begin_def ();
@@ -2529,9 +2535,9 @@ and type_expect_ ?in_function env sexp ty_expected eff_expected =
         | Some sty ->
             if separate then begin_def ();
             let (cty, force) =
-              Typetexp.transl_simple_type_delayed env sty
+              Typetexp.transl_simple_type_delayed env (Some Stype) sty
             and (cty', force') =
-              Typetexp.transl_simple_type_delayed env sty'
+              Typetexp.transl_simple_type_delayed env (Some Stype) sty'
             in
             let ty = cty.ctyp_type in
             let ty' = cty'.ctyp_type in
@@ -2819,7 +2825,7 @@ and type_expect_ ?in_function env sexp ty_expected eff_expected =
         match sty with None -> repr ty_expected, None
         | Some sty ->
             let sty = Ast_helper.Typ.force_poly sty in
-            let cty = Typetexp.transl_simple_type env false sty in
+            let cty = Typetexp.transl_simple_type env false (Some Stype) sty in
             repr cty.ctyp_type, Some cty
       in
       if !Clflags.principal then begin
