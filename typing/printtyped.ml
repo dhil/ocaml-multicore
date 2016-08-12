@@ -88,6 +88,11 @@ let fmt_closed_flag f x =
   | Closed -> fprintf f "Closed"
   | Open -> fprintf f "Open"
 
+let fmt_effect_flag f x =
+  match x with
+  | Type -> fprintf f "Type"
+  | Effect -> fprintf f "Effect"
+
 let fmt_rec_flag f x =
   match x with
   | Nonrecursive -> fprintf f "Nonrec";
@@ -289,8 +294,8 @@ and expression_extra i ppf x attrs =
       line i ppf "Pexp_poly\n";
       attributes i ppf attrs;
       option i core_type ppf cto;
-  | Texp_newtype s ->
-      line i ppf "Pexp_newtype \"%s\"\n" s;
+  | Texp_newtype (n, s) ->
+      line i ppf "Pexp_newtype \"%s\" %a\n" n fmt_effect_flag s;
       attributes i ppf attrs;
 
 and expression i ppf x =
