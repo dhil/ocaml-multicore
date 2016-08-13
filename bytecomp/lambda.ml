@@ -131,6 +131,7 @@ type primitive =
   | Patomic_load
   | Patomic_store
   | Patomic_cas
+  | Ptag
 
 and comparison =
     Ceq | Cneq | Clt | Cgt | Cle | Cge

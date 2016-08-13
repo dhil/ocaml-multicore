@@ -315,6 +315,7 @@ let primitives_table = create_hashtable 57 [
   "%atomic_load", Patomic_load;
   "%atomic_store", Patomic_store;
   "%atomic_cas", Patomic_cas;
+  "%tag", Ptag;
 ]
 
 let prim_makearray =
@@ -862,7 +863,7 @@ and transl_exp0 e =
       let is_const = ecstr.ecstr_arity = 0 in
       let arg =
         if is_const then tag
-        else Lprim(Pmakeblock(0, Immutable), tag :: transl_list args)
+        else Lprim(Pmakeblock(1, Immutable), tag :: transl_list args)
       in
       let is_raise = ecstr.ecstr_res = None in
       if is_raise then
