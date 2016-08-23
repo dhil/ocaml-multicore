@@ -476,12 +476,13 @@ module Eff = struct
   let mk ?(loc = !default_loc) ?(attrs = [])
         ?(docs = empty_docs) ?(text = [])
       ?(kind = Peff_abstract)
-      ?manifest
+      ?manifest ?handler
       name =
     {
      peff_name = name;
      peff_kind = kind;
      peff_manifest = manifest;
+     peff_handler = handler;
      peff_attributes =
        add_text_attrs text (add_docs_attrs docs attrs);
      peff_loc = loc;
@@ -497,6 +498,11 @@ module Eff = struct
      pec_attributes = add_info_attrs info attrs;
     }
 
+  let handler ?(loc = !default_loc) cases =
+    {
+      peh_cases = cases;
+      peh_loc = loc;
+    }
 end
 
 module Csig = struct

@@ -178,11 +178,19 @@ and untype_extension_constructor ext =
     pext_attributes = ext.ext_attributes;
   }
 
+and untype_effect_handler eh =
+  {
+    peh_cases = untype_cases eh.eh_cases;
+    peh_loc = eh.eh_loc;
+  }
+
+
 and untype_effect_declaration eff =
   {
     peff_name = eff.eff_name;
     peff_kind = untype_effect_kind eff.eff_kind;
     peff_manifest = Misc.may_map fst eff.eff_manifest;
+    peff_handler = Misc.may_map untype_effect_handler eff.eff_handler;
     peff_loc = eff.eff_loc;
     peff_attributes = eff.eff_attributes;
   }
