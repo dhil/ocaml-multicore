@@ -86,6 +86,9 @@ let effect_declaration sub eff =
   effect_kind sub eff.eff_kind;
   opt (effect_handler sub) eff.eff_handler
 
+let effect_description sub eff =
+  effect_kind sub eff.eff_kind
+
 let pattern sub pat =
   let extra = function
     | Tpat_type _
@@ -205,7 +208,7 @@ let signature_item sub item =
   | Tsig_exception ext ->
       sub # extension_constructor ext
   | Tsig_effect eff ->
-      sub # effect_declaration eff
+      sub # effect_description eff
   | Tsig_module md ->
       sub # module_type md.md_type
   | Tsig_recmodule list ->
@@ -320,7 +323,7 @@ let core_type sub ct =
   | Ttyp_var(_n, _s) -> ()
   | Ttyp_arrow (_label, ct1, eft, ct2) ->
       sub # core_type ct1;
-      opt (sub # effect_desc) eft.eft_desc;
+      opt (sub # effect_row) eft.eft_desc;
       sub # core_type ct2
   | Ttyp_tuple list -> List.iter (sub # core_type) list
   | Ttyp_constr (_path, _, list) ->
@@ -334,11 +337,11 @@ let core_type sub ct =
   | Ttyp_variant (list, _bool, _labels) ->
       List.iter (sub # row_field) list
   | Ttyp_poly (_list, ct) -> sub # core_type ct
-  | Ttyp_effect efd -> sub # effect_desc efd
+  | Ttyp_effect efd -> sub # effect_row efd
   | Ttyp_package pack -> sub # package_type pack
 
-let effect_desc sub efd =
-  opt (sub # core_type) efd.efd_row
+let effect_row sub efr =
+  opt (sub # core_type) efr.efr_row
 
 let class_structure sub cs =
   sub # pattern cs.cstr_self;
@@ -400,7 +403,8 @@ class iter = object(this)
   method expression = expression this
   method extension_constructor = extension_constructor this
   method effect_declaration = effect_declaration this
-  method effect_desc = effect_desc this
+  method effect_description = effect_description this
+  method effect_row = effect_row this
   method module_binding = module_binding this
   method module_expr = module_expr this
   method module_type = module_type this

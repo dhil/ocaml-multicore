@@ -273,9 +273,9 @@ let varify_constructors newtypes t =
       | Rinherit t ->
           Rinherit (loop t)
   and loop_effect_desc desc =
-    match desc.pefd_row with
+    match desc.pefr_row with
     | None -> desc
-    | Some t -> { desc with pefd_row = Some (loop t) }
+    | Some t -> { desc with pefr_row = Some (loop t) }
   in
   loop t
 
@@ -410,8 +410,8 @@ let class_of_let_bindings lbs body =
     mkclass(Pcl_let (lbs.lbs_rec, List.rev bindings, body))
 
 let mkeffect effects rowo =
-  { pefd_effects = effects;
-    pefd_row = rowo; }
+  { pefr_effects = effects;
+    pefr_row = rowo; }
 
 let pure_effect = mkeffect [] None
 
@@ -888,7 +888,7 @@ signature_item:
       { mksig(Psig_typext $1) }
   | sig_exception_declaration
       { mksig(Psig_exception $1) }
-  | effect_declaration
+  | effect_description
       { mksig(Psig_effect $1) }
   | module_declaration
       { mksig(Psig_module $1) }
@@ -1912,7 +1912,13 @@ sig_exception_declaration:
 effect_declaration:
   | EFFECT LIDENT effect_kind effect_handler post_item_attributes
       { let (kind, manifest) = $3 in
-          Eff.mk (mkrhs $2 2) ~kind ?manifest ?handler:$4 ~attrs:$5
+          Eff.decl (mkrhs $2 2) ~kind ?manifest ?handler:$4 ~attrs:$5
+            ~loc:(symbol_rloc ()) ~docs:(symbol_docs ()) }
+;
+effect_description:
+  | EFFECT LIDENT effect_kind effect_handler_desc post_item_attributes
+      { let (kind, manifest) = $3 in
+          Eff.desc (mkrhs $2 2) ~kind ?manifest ~handler:$4 ~attrs:$5
             ~loc:(symbol_rloc ()) ~docs:(symbol_docs ()) }
 ;
 effect_kind:
@@ -1949,8 +1955,14 @@ bar_effect_constructor:
 effect_handler:
   | /* empty */
       { None }
-  | WITH opt_bar handler_cases
-      { Some (Eff.handler ~loc:(symbol_rloc()) $3)  }
+  | WITH FUNCTION opt_bar handler_cases
+      { Some (Eff.handler ~loc:(symbol_rloc()) $4)  }
+;
+effect_handler_desc:
+  | /* empty */
+      { false }
+  | WITH FUNCTION
+      { true  }
 ;
 handler_cases:
     handler_case { [$1] }
@@ -2154,45 +2166,45 @@ arrow:
       { Some pure_effect }
   | TILDEGREATER
       { Some tilde_effect }
-  | MINUSLBRACKET effect_desc RBRACKETMINUSGREATER
+  | MINUSLBRACKET effect_row RBRACKETMINUSGREATER
       { Some $2 }
 ;
 
-effect_desc_effects:
+effect_row_effects:
   | /* empty */
       { [] }
   | effect_longident
       { [mkrhs $1 1] }
-  | effect_desc_effects BAR effect_longident
+  | effect_row_effects BAR effect_longident
       { (mkrhs $3 3) :: $1 }
 ;
 
-effect_desc:
-  | effect_desc_effects
+effect_row:
+  | effect_row_effects
       { mkeffect $1 None }
-  | effect_desc_effects BAR DOTDOT AS core_type
+  | effect_row_effects BAR DOTDOT AS core_type
       { mkeffect $1 (Some $5) }
   | DOTDOT AS core_type
       { mkeffect [] (Some $3) }
-  | effect_desc_effects BAR DOTDOT
+  | effect_row_effects BAR DOTDOT
       { let row = mktyp Ptyp_any in
           mkeffect $1 (Some row) }
   | DOTDOT
       { let row = mktyp Ptyp_any in
           mkeffect [] (Some row) }
-  | effect_desc_effects BAR BANG ident
+  | effect_row_effects BAR BANG ident
       { let row = mktyp(Ptyp_var($4, Effect)) in
           mkeffect $1 (Some row) }
   | BANG ident
       { let row = mktyp(Ptyp_var($2, Effect)) in
         mkeffect [] (Some row) }
-  | effect_desc_effects BAR BANG TILDE
+  | effect_row_effects BAR BANG TILDE
       { let row = mktyp(Ptyp_var("~", Effect)) in
           mkeffect $1 (Some row) }
   | BANG TILDE
       { let row = mktyp(Ptyp_var("~", Effect)) in
           mkeffect [] (Some row) }
-  | effect_desc_effects BAR BANGTILDE
+  | effect_row_effects BAR BANGTILDE
       { let row = mktyp(Ptyp_var("~", Effect)) in
           mkeffect $1 (Some row) }
   | BANGTILDE
@@ -2259,7 +2271,7 @@ simple_core_type2:
       { mktyp(Ptyp_variant(List.rev $3, Closed, Some [])) }
   | LBRACKETLESS opt_bar row_field_list GREATER name_tag_list RBRACKET
       { mktyp(Ptyp_variant(List.rev $3, Closed, Some (List.rev $5))) }
-  | BANG LBRACKET effect_desc RBRACKET
+  | BANG LBRACKET effect_row RBRACKET
       { mktyp(Ptyp_effect $3) }
   | LPAREN MODULE package_type RPAREN
       { mktyp(Ptyp_package $3) }

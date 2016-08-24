@@ -178,21 +178,33 @@ and untype_extension_constructor ext =
     pext_attributes = ext.ext_attributes;
   }
 
+and untype_effect_infos :
+    'a 'b. ('a -> 'b) ->
+    'a Typedtree.effect_infos -> 'b Parsetree.effect_infos =
+  fun untype_handler eff ->
+    {
+      peff_name = eff.eff_name;
+      peff_kind = untype_effect_kind eff.eff_kind;
+      peff_manifest = Misc.may_map fst eff.eff_manifest;
+      peff_handler = untype_handler eff.eff_handler;
+      peff_loc = eff.eff_loc;
+      peff_attributes = eff.eff_attributes;
+    }
+
+and untype_effect_declaration eff =
+  let untype_handler eh =
+    Misc.may_map untype_effect_handler eh
+  in
+  untype_effect_infos untype_handler eff
+
+and untype_effect_description eff =
+  let untype_handler b = b in
+  untype_effect_infos untype_handler eff
+
 and untype_effect_handler eh =
   {
     peh_cases = untype_cases eh.eh_cases;
     peh_loc = eh.eh_loc;
-  }
-
-
-and untype_effect_declaration eff =
-  {
-    peff_name = eff.eff_name;
-    peff_kind = untype_effect_kind eff.eff_kind;
-    peff_manifest = Misc.may_map fst eff.eff_manifest;
-    peff_handler = Misc.may_map untype_effect_handler eff.eff_handler;
-    peff_loc = eff.eff_loc;
-    peff_attributes = eff.eff_attributes;
   }
 
 and untype_effect_kind = function
@@ -423,7 +435,7 @@ and untype_signature_item item =
     | Tsig_exception ext ->
         Psig_exception (untype_extension_constructor ext)
     | Tsig_effect eff ->
-        Psig_effect (untype_effect_declaration eff)
+        Psig_effect (untype_effect_description eff)
     | Tsig_module md ->
         Psig_module {pmd_name = md.md_name;
                      pmd_type = untype_module_type md.md_type;
@@ -633,7 +645,7 @@ and untype_core_type ct =
         Ptyp_variant (List.map untype_row_field list, bool, labels)
     | Ttyp_poly (list, ct) -> Ptyp_poly (list, untype_core_type ct)
     | Ttyp_package pack -> Ptyp_package (untype_package_type pack)
-    | Ttyp_effect efd -> Ptyp_effect (untype_effect_desc efd)
+    | Ttyp_effect efd -> Ptyp_effect (untype_effect_row efd)
   in
   Typ.mk ~loc:ct.ctyp_loc desc
 
@@ -653,12 +665,12 @@ and untype_row_field rf =
       Rtag (label, attrs, bool, List.map untype_core_type list)
   | Tinherit ct -> Rinherit (untype_core_type ct)
 
-and untype_effect_desc efd =
-  { pefd_effects = List.map fst efd.efd_effects;
-    pefd_row = Misc.may_map untype_core_type efd.efd_row; }
+and untype_effect_row efr =
+  { pefr_effects = List.map fst efr.efr_effects;
+    pefr_row = Misc.may_map untype_core_type efr.efr_row; }
 
 and untype_effect_type eft =
-  Misc.may_map untype_effect_desc eft.eft_desc
+  Misc.may_map untype_effect_row eft.eft_desc
 
 and is_self_pat = function
   | { pat_desc = Tpat_alias(_pat, id, _) } ->

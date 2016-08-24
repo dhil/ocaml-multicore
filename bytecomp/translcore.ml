@@ -1282,7 +1282,7 @@ let transl_effect_handler eh =
          transl_function eh.eh_loc
            !Clflags.native_code repr Partial eh.eh_cases)
   in
-    Lfunction{kind; params; body}
+    Lfunction(kind, params, body)
 
 (* Wrapper for class compilation *)
 
