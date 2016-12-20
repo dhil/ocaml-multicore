@@ -194,7 +194,7 @@ and pattern_desc =
          *)
   | Ppat_exception of pattern
         (* exception P *)
-  | Ppat_effect of pattern * pattern
+  | Ppat_effect of pattern * (pattern option)
         (* effect P P *)
   | Ppat_extension of extension
         (* [%id] *)

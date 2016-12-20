@@ -234,7 +234,7 @@ and pattern i ppf x =
   | Ppat_effect(p1, p2) ->
       line i ppf "Ppat_effect\n";
       pattern i ppf p1;
-      pattern i ppf p2
+      option i pattern ppf p2
   | Ppat_extension (s, arg) ->
       line i ppf "Ppat_extension \"%s\"\n" s.txt;
       payload i ppf arg

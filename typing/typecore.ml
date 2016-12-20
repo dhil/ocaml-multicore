@@ -1669,7 +1669,8 @@ let iter_ppat f p =
   | Ppat_extension _
   | Ppat_type _ | Ppat_unpack _ -> ()
   | Ppat_array pats -> List.iter f pats
-  | Ppat_or (p1,p2) | Ppat_effect(p1, p2) -> f p1; f p2
+  | Ppat_or (p1,p2) | Ppat_effect(p1, Some p2) -> f p1; f p2
+  | Ppat_effect (p1, None) -> f p1
   | Ppat_variant (_, arg) | Ppat_construct (_, arg) -> may f arg
   | Ppat_tuple lst ->  List.iter f lst
   | Ppat_exception p | Ppat_alias (p,_)
@@ -3637,7 +3638,13 @@ and type_effect_cases env ty_res loc caselist conts =
   let ty_eff = newgenty (Tconstr (Path.Pident id,[],ref Mnil)) in
   let ty_arg = Predef.type_eff ty_eff in
   let ty_cont = Predef.type_continuation ty_eff ty_res in
-  let conts = List.map (type_continuation_pat env ty_cont) conts in
+  let conts =
+    List.map
+      (function
+      | Some k -> type_continuation_pat env ty_cont k
+      | None   -> None)
+      conts
+  in
   let cases, _ = type_cases new_env ty_arg ty_res ~conts false loc caselist in
   end_def ();
   cases

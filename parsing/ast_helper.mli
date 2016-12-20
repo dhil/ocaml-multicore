@@ -82,7 +82,7 @@ module Pat:
     val lazy_: ?loc:loc -> ?attrs:attrs -> pattern -> pattern
     val unpack: ?loc:loc -> ?attrs:attrs -> str -> pattern
     val exception_: ?loc:loc -> ?attrs:attrs -> pattern -> pattern
-    val effect_: ?loc:loc -> ?attrs:attrs -> pattern -> pattern -> pattern
+    val effect_: ?loc:loc -> ?attrs:attrs -> pattern -> pattern option -> pattern
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> pattern
   end
 
