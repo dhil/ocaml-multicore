@@ -9,6 +9,7 @@
 #include "caml/addrmap.h"
 #include "caml/roots.h"
 #include "caml/alloc.h"
+#include "caml/fiber.h"
 
 static void write_barrier(value obj, int field, value val)
 {
@@ -54,9 +55,22 @@ CAMLexport void caml_modify_field (value obj, int field, value val)
 
 CAMLexport void caml_initialize_field (value obj, int field, value val)
 {
-  /* FIXME: there are more efficient implementations of this */
-  Op_val(obj)[field] = Val_long(0);
-  caml_modify_field(obj, field, val);
+  Assert(Is_block(obj));
+  Assert(!Is_foreign(obj));
+  Assert(0 <= field && field < Wosize_val(obj));
+#ifdef DEBUG
+  /* caml_initialize_field can only be used on just-allocated objects */
+  if (Is_young(obj)) Assert(Op_val(obj)[field] == Debug_uninit_minor);
+  else Assert(Op_val(obj)[field] == Debug_uninit_major);
+#endif
+
+  if (!Is_young(obj) && Is_young(val)) {
+    Begin_root(obj);
+    val = caml_promote(caml_domain_self(), val);
+    End_roots();
+  }
+  write_barrier(obj, field, val);
+  Op_val(obj)[field] = val;
 }
 
 CAMLexport int caml_atomic_cas_field (value obj, int field, value oldval, value newval)
@@ -94,6 +108,8 @@ CAMLexport void caml_set_fields (value obj, value v)
 
 CAMLexport void caml_blit_fields (value src, int srcoff, value dst, int dstoff, int n)
 {
+  CAMLparam2(src, dst);
+  CAMLlocal1(x);
   int i;
   Assert(Is_block(src));
   Assert(Is_block(dst));
@@ -114,7 +130,8 @@ CAMLexport void caml_blit_fields (value src, int srcoff, value dst, int dstoff, 
       }
     } else {
       for (i = n; i > 0; i--) {
-        caml_modify_field(dst, dstoff + i - 1, Field(src, srcoff + i - 1));
+        caml_read_field(src, srcoff + i - 1, &x);
+        caml_modify_field(dst, dstoff + i - 1, x);
       }
     }
   } else {
@@ -122,14 +139,17 @@ CAMLexport void caml_blit_fields (value src, int srcoff, value dst, int dstoff, 
     if (Is_young(dst)) {
       /* see comment above */
       for (i = 0; i < n; i++) {
-        Op_val(dst)[dstoff + i] = Field(src, srcoff + i);
+        caml_read_field(src, srcoff + i, &x);
+        Op_val(dst)[dstoff + i] = x;
       }
     } else {
       for (i = 0; i < n; i++) {
-        caml_modify_field(dst, dstoff + i, Field(src, srcoff + i));
+        caml_read_field(src, srcoff + i, &x);
+        caml_modify_field(dst, dstoff + i, x);
       }
     }
   }
+  CAMLreturn0;
 }
 
 CAMLexport value caml_alloc_shr (mlsize_t wosize, tag_t tag)
@@ -142,6 +162,19 @@ CAMLexport value caml_alloc_shr (mlsize_t wosize, tag_t tag)
   if (caml_domain_state->allocated_words > Wsize_bsize (caml_minor_heap_size)) {
     caml_urge_major_slice();
   }
+
+  if (tag < No_scan_tag) {
+    mlsize_t i;
+    for (i = 0; i < wosize; i++) {
+      value init_val = Val_unit;
+      #ifdef DEBUG
+      init_val = Debug_uninit_major;
+      #endif
+      Op_hp(v)[i] = init_val;
+    }
+  }
+
+  if (tag == Stack_tag) Stack_sp(Val_hp(v)) = 0;
 
   return Val_hp(v);
 }
@@ -204,13 +237,7 @@ CAMLexport value caml_read_barrier(value obj, int field)
 
 CAMLprim value caml_bvar_create(value v)
 {
-  CAMLparam1(v);
-
-  value bv = caml_alloc_small(2, 0);
-  Init_field(bv, 0, v);
-  Init_field(bv, 1, Val_long(caml_domain_self()->id));
-
-  CAMLreturn (bv);
+  return caml_alloc_2(0, v, Val_long(caml_domain_self()->id));
 }
 
 struct bvar_transfer_req {

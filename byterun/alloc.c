@@ -38,16 +38,21 @@ CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag)
   }else if (wosize <= Max_young_wosize){
     Alloc_small (result, wosize, tag, { caml_handle_gc_interrupt(); });
     if (tag < No_scan_tag){
-      for (i = 0; i < wosize; i++) Init_field (result, i, Val_unit);
+      for (i = 0; i < wosize; i++) {
+        value init_val = Val_unit;
+        #ifdef DEBUG
+          init_val = Debug_uninit_minor;
+        #endif
+        Op_val(result)[i] = init_val;
+      }
     }
+
+    if (tag == Stack_tag) Stack_sp(result) = 0;
   }else{
     result = caml_alloc_shr (wosize, tag);
-    if (tag < No_scan_tag){
-      for (i = 0; i < wosize; i++) Op_val(result)[i] = Val_unit;
-    }
-    if (tag == Stack_tag) Stack_sp(result) = 0;
-    result = caml_check_urgent_gc (result);
+    result = caml_check_urgent_gc(result);
   }
+
   return result;
 }
 
@@ -155,13 +160,7 @@ CAMLexport value caml_alloc_N (mlsize_t wosize, tag_t tag, ...)
 
 CAMLexport value caml_alloc_small (mlsize_t wosize, tag_t tag)
 {
-  value result;
-
-  Assert (wosize > 0);
-  Assert (wosize <= Max_young_wosize);
-  Assert (tag < 256);
-  Alloc_small (result, wosize, tag, { caml_handle_gc_interrupt(); });
-  return result;
+  return caml_alloc(wosize, tag);
 }
 
 CAMLexport value caml_alloc_tuple(mlsize_t n)
@@ -229,8 +228,8 @@ CAMLexport int caml_convert_flag_list(value list, const int *flags)
   int res;
   res = 0;
   while (list != Val_int(0)) {
-    res |= flags[Int_val(Field(list, 0))];
-    list = Field(list, 1);
+    res |= flags[Int_field(list, 0)];
+    list = Field_imm(list, 1);
   }
   return res;
 }
@@ -255,6 +254,8 @@ CAMLprim value caml_alloc_dummy_float (value size)
 
 CAMLprim value caml_update_dummy(value dummy, value newval)
 {
+  CAMLparam2(dummy, newval);
+  CAMLlocal1(x);
   mlsize_t size, i;
   tag_t tag;
 
@@ -271,10 +272,11 @@ CAMLprim value caml_update_dummy(value dummy, value newval)
     }
   }else{
     for (i = 0; i < size; i++){
-      caml_modify_field (dummy, i, Field(newval, i));
+      caml_read_field(newval, i, &x);
+      caml_modify_field (dummy, i, x);
     }
   }
-  return Val_unit;
+  CAMLreturn (Val_unit);
 }
 
 

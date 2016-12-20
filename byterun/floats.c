@@ -39,8 +39,8 @@ CAMLexport double caml_Double_val(value val)
   union { value v[2]; double d; } buffer;
 
   Assert(sizeof(double) == 2 * sizeof(value));
-  buffer.v[0] = Field(val, 0);
-  buffer.v[1] = Field(val, 1);
+  buffer.v[0] = Op_val(val)[0];
+  buffer.v[1] = Op_val(val)[1];
   return buffer.d;
 }
 
@@ -50,8 +50,8 @@ CAMLexport void caml_Store_double_val(value val, double dbl)
 
   Assert(sizeof(double) == 2 * sizeof(value));
   buffer.d = dbl;
-  Field(val, 0) = buffer.v[0];
-  Field(val, 1) = buffer.v[1];
+  Op_val(val)[0] = buffer.v[0];
+  Op_val(val)[1] = buffer.v[1];
 }
 
 #endif
@@ -212,8 +212,8 @@ CAMLprim value caml_frexp_float(value f)
 
   mantissa = caml_copy_double(frexp (Double_val(f), &exponent));
   res = caml_alloc_tuple(2);
-  Init_field(res, 0, mantissa);
-  Init_field(res, 1, Val_int(exponent));
+  caml_initialize_field(res, 0, mantissa);
+  caml_initialize_field(res, 1, Val_int(exponent));
   CAMLreturn (res);
 }
 
@@ -242,8 +242,8 @@ CAMLprim value caml_modf_float(value f)
   quo = caml_copy_double(modf (Double_val(f), &frem));
   rem = caml_copy_double(frem);
   res = caml_alloc_tuple(2);
-  Init_field(res, 0, quo);
-  Init_field(res, 1, rem);
+  caml_initialize_field(res, 0, quo);
+  caml_initialize_field(res, 1, rem);
   CAMLreturn (res);
 }
 

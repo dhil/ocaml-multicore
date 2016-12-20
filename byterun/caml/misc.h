@@ -80,6 +80,9 @@ CAMLextern int caml_failed_assert (char *, char *, int);
 #define CAMLassert(x) ((void) 0)
 #endif
 
+#ifndef CAML_AVOID_CONFLICTS
+#define Assert CAMLassert
+#endif  
 
 #define CAML_STATIC_ASSERT_3(b, l) \
   typedef char static_assertion_failure_line_##l[(b) ? 1 : -1]
@@ -127,11 +130,11 @@ void caml_gc_log (char *, ...)
                       | ((uintnat) (x) << 16) \
                       | ((uintnat) (x) << 48))
 #define Is_debug_tag(x) \
-  (((x) & 0xD700D7D7D700D6D7ul) == 0xD700D7D7D700D6D7ul)
+  (((x) & 0xff00ffffff00fffful) == 0xD700D7D7D700D6D7ul)
 #else
 #define Debug_tag(x) (0xD700D6D7ul | ((uintnat) (x) << 16))
 #define Is_debug_tag(x) \
-  (((x) & 0xD700D6D7ul) == 0xD700D6D7ul)
+  (((x) & 0xff00fffful) == 0xD700D6D7ul)
 #endif /* ARCH_SIXTYFOUR */
 
 /*
@@ -159,10 +162,6 @@ void caml_gc_log (char *, ...)
 #define Debug_uninit_stat    0xD7
 
 #endif /* DEBUG */
-
-#ifndef CAML_AVOID_CONFLICTS
-#define Assert CAMLassert
-#endif
 
 /* snprintf emulation for Win32 */
 
