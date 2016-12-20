@@ -285,7 +285,7 @@ and untype_effect_case c =
     | None -> Pat.mk Ppat_any
   in
   let pat =
-    { uc.pc_lhs with ppat_desc = Ppat_effect(uc.pc_lhs, cont) }
+    { uc.pc_lhs with ppat_desc = Ppat_effect(uc.pc_lhs, Some cont) }
   in
     { uc with pc_lhs = pat }
 

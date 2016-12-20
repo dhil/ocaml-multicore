@@ -143,7 +143,8 @@ let rec add_pattern bv pat =
   | Ppat_lazy p -> add_pattern bv p
   | Ppat_unpack id -> pattern_bv := StringSet.add id.txt !pattern_bv
   | Ppat_exception p -> add_pattern bv p
-  | Ppat_effect(p1, p2) -> add_pattern bv p1; add_pattern bv p2
+  | Ppat_effect(p1, Some p2) -> add_pattern bv p1; add_pattern bv p2
+  | Ppat_effect(p1, None)    -> add_pattern bv p1
   | Ppat_extension _ -> ()
 
 let add_pattern bv pat =

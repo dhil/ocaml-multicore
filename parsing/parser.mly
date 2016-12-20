@@ -1615,7 +1615,7 @@ pattern:
   | EXCEPTION pattern %prec prec_constr_appl
       { mkpat(Ppat_exception $2) }
   | EFFECT simple_pattern simple_pattern
-      { mkpat(Ppat_effect($2, $3)) }
+      { mkpat(Ppat_effect($2, Some $3)) }
   | pattern attribute
       { Pat.attr $1 $2 }
 ;
@@ -1845,17 +1845,40 @@ effect_declaration:
 ;
 effect_constructor_declaration:
   | constr_ident attributes COLON core_type_list MINUSGREATER simple_core_type
-      post_item_attributes
+      default_handler post_item_attributes
       { Te.effect_decl (mkrhs $1 1) $6 ~args:(List.rev $4)
-          ~loc:(symbol_rloc()) ~attrs:($7 @ $2) }
-  | constr_ident attributes COLON simple_core_type post_item_attributes
+          ~loc:(symbol_rloc()) ~attrs:($8 @ $2) }
+  | constr_ident attributes COLON simple_core_type default_handler post_item_attributes
       { Te.effect_decl (mkrhs $1 1) $4
-          ~loc:(symbol_rloc()) ~attrs:($5 @ $2) }
+          ~loc:(symbol_rloc()) ~attrs:($6 @ $2) }
 ;
 effect_constructor_rebind:
   | constr_ident attributes EQUAL constr_longident post_item_attributes
       { Te.effect_rebind (mkrhs $1 1) (mkrhs $4 4)
           ~loc:(symbol_rloc()) ~attrs:($5 @ $2) }
+;
+default_handler:
+  | /* empty */
+      { None }
+  | WITH FUNCTION opt_bar default_handler_cases
+      { Printf.printf "effect_handler: Not yet implemented.\n"; None }
+;
+default_handler_cases:
+  | default_handler_case { [$1] }
+  | default_handler_cases BAR default_handler_case { $3 :: $1 }
+;
+default_handler_case:
+  | default_handler_pattern MINUSGREATER seq_expr
+      { () }
+  | default_handler_pattern WHEN seq_expr MINUSGREATER seq_expr
+      { () }
+;
+default_handler_pattern:  
+  | simple_pattern
+      { mkpat(Ppat_effect($1, None)) }
+  | constr_longident simple_pattern
+      { let peff = mkpat(Ppat_construct(mkrhs $1 1, Some $2)) in
+        mkpat(Ppat_effect(peff, None)) }
 ;
 
 generalized_constructor_arguments:
