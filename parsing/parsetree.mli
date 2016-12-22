@@ -442,15 +442,25 @@ and extension_constructor_kind =
       (*
          | C = D
        *)
-
-and effect_constructor =
+     
+and effect_declaration =
     {
      peff_name: string loc;
      peff_kind : effect_constructor_kind;
      peff_loc : Location.t;
-     peff_attributes: attributes; (* C [@id1] [@id2] of ... *)
+     peff_attributes: attributes; 
+     peff_default_handler: effect_handler option;
     }
 
+and effect_constructor =
+    {
+     pec_name: string loc;
+     pec_args: core_type list;
+     pec_res: core_type option;
+     pec_loc: Location.t;
+     pec_attributes: attributes;
+    }
+      
 and effect_constructor_kind =
     Peff_decl of core_type list * core_type
       (*
@@ -463,6 +473,10 @@ and effect_constructor_kind =
          | C = D
        *)
 
+and effect_handler =
+  { peh_cases: case list;
+    peh_loc: Location.t }
+      
 (** {2 Class language} *)
 
 (* Type expressions for the class language *)
@@ -671,7 +685,7 @@ and signature_item_desc =
         (* type t1 += ... *)
   | Psig_exception of extension_constructor
         (* exception C of T *)
-  | Psig_effect of effect_constructor
+  | Psig_effect of effect_declaration
         (* effect C : T -> T *)
   | Psig_module of module_declaration
         (* module X : MT *)
@@ -800,7 +814,7 @@ and structure_item_desc =
   | Pstr_exception of extension_constructor
         (* exception C of T
            exception C = M.X *)
-  | Pstr_effect of effect_constructor
+  | Pstr_effect of effect_declaration
         (* effect C : T -> T
            effect C = M.X *)
   | Pstr_module of module_binding

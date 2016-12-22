@@ -25,7 +25,7 @@ val transl_exception:
 
 val transl_effect:
     Env.t ->
-    Parsetree.effect_constructor -> Typedtree.extension_constructor * Env.t
+    Parsetree.effect_declaration -> Typedtree.extension_constructor * Env.t
 
 val transl_type_extension:
     bool -> Env.t -> Location.t -> Parsetree.type_extension ->

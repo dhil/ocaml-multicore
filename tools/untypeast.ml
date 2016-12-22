@@ -194,6 +194,7 @@ and untype_effect_constructor ext =
     );
     peff_loc = ext.ext_loc;
     peff_attributes = ext.ext_attributes;
+    peff_default_handler = None; (* FIXME : Figure out what 'ext' is *)
   }
 
 and untype_pattern pat =
