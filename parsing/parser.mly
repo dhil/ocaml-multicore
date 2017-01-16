@@ -1847,21 +1847,22 @@ effect_constructor_declaration:
   | constr_ident attributes COLON core_type_list MINUSGREATER simple_core_type
       default_handler post_item_attributes
       { Te.effect_decl (mkrhs $1 1) $6 ~args:(List.rev $4)
-          ~loc:(symbol_rloc()) ~attrs:($8 @ $2) }
+          ~loc:(symbol_rloc()) ~attrs:($8 @ $2) ~default_handler:$7 }
   | constr_ident attributes COLON simple_core_type default_handler post_item_attributes
       { Te.effect_decl (mkrhs $1 1) $4
-          ~loc:(symbol_rloc()) ~attrs:($6 @ $2) }
+          ~loc:(symbol_rloc()) ~attrs:($6 @ $2) ~default_handler:$5 }
 ;
 effect_constructor_rebind:
-  | constr_ident attributes EQUAL constr_longident post_item_attributes
+  | constr_ident attributes EQUAL constr_longident default_handler post_item_attributes
       { Te.effect_rebind (mkrhs $1 1) (mkrhs $4 4)
-          ~loc:(symbol_rloc()) ~attrs:($5 @ $2) }
+          ~loc:(symbol_rloc()) ~attrs:($6 @ $2) }
 ;
+
 default_handler:
   | /* empty */
       { None }
   | WITH FUNCTION opt_bar default_handler_cases
-      { Printf.printf "effect_handler: Not yet implemented.\n"; None }
+      { Some (Te.default_handler ~loc:(symbol_rloc()) $4) }
 ;
 default_handler_cases:
   | default_handler_case { [$1] }
@@ -1869,9 +1870,9 @@ default_handler_cases:
 ;
 default_handler_case:
   | default_handler_pattern MINUSGREATER seq_expr
-      { () }
+      { Exp.case $1 $3 }
   | default_handler_pattern WHEN seq_expr MINUSGREATER seq_expr
-      { () }
+      { Exp.case $1 ~guard:$3 $5 }
 ;
 default_handler_pattern:  
   | simple_pattern

@@ -194,6 +194,7 @@ and untype_effect_constructor ext =
     );
     peff_loc = ext.ext_loc;
     peff_attributes = ext.ext_attributes;
+    peff_handler = ext.ext_handler;
   }
 
 and untype_pattern pat =
@@ -281,11 +282,11 @@ and untype_effect_case c =
     match c.c_cont with
     | Some id ->
         let name = Location.mknoloc (Ident.name id) in
-          Pat.mk (Ppat_var name)
-    | None -> Pat.mk Ppat_any
+          Some (Pat.mk (Ppat_var name))
+    | None -> Some (Pat.mk Ppat_any) (** FIXME : Figure out whether this translation is correct. Default handler cases get a dummy continuation parameter *)
   in
   let pat =
-    { uc.pc_lhs with ppat_desc = Ppat_effect(uc.pc_lhs, Some cont) }
+    { uc.pc_lhs with ppat_desc = Ppat_effect(uc.pc_lhs, cont) }
   in
     { uc with pc_lhs = pat }
 
