@@ -194,8 +194,9 @@ and pattern_desc =
          *)
   | Ppat_exception of pattern
         (* exception P *)
-  | Ppat_effect of pattern * (pattern option)
-        (* effect P P *)
+  | Ppat_effect of pattern * pattern option
+        (* effect P1 P2 -- where P2 is the continuation pattern which
+           is not available in a default handler *)
   | Ppat_extension of extension
         (* [%id] *)
 
@@ -447,6 +448,7 @@ and effect_constructor =
     {
      peff_name: string loc;
      peff_kind : effect_constructor_kind;
+     peff_handler : effect_handler option;
      peff_loc : Location.t;
      peff_attributes: attributes; (* C [@id1] [@id2] of ... *)
     }
@@ -461,7 +463,11 @@ and effect_constructor_kind =
   | Peff_rebind of Longident.t loc
       (*
          | C = D
-       *)
+      *)
+
+and effect_handler =
+  { peh_cases: case list;
+    peh_loc: Location.t }
 
 (** {2 Class language} *)
 

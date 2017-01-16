@@ -472,14 +472,16 @@ module Te = struct
      peff_kind = kind;
      peff_loc = loc;
      peff_attributes = attrs;
+     peff_handler = None;
     }
 
-  let effect_decl ?(loc = !default_loc) ?(attrs = []) ?(args = []) name res =
+  let effect_decl ?(loc = !default_loc) ?(attrs = []) ?(args = []) ?(default_handler = None) name res =
     {
      peff_name = name;
      peff_kind = Peff_decl(args, res);
      peff_loc = loc;
      peff_attributes = attrs;
+     peff_handler = default_handler;
     }
 
   let effect_rebind ?(loc = !default_loc) ?(attrs = []) name lid =
@@ -488,8 +490,14 @@ module Te = struct
      peff_kind = Peff_rebind lid;
      peff_loc = loc;
      peff_attributes = attrs;
+     peff_handler = None;
     }
 
+  let default_handler ?(loc = !default_loc) cases =
+    {
+     peh_cases = cases;
+     peh_loc = loc;
+    }
 end
 
 module Csig = struct
