@@ -1224,7 +1224,8 @@ let transl_extension_constructor env type_path type_params
       ext_type = ext;
       ext_kind = kind;
       Typedtree.ext_loc = sext.pext_loc;
-      Typedtree.ext_attributes = sext.pext_attributes; }
+      Typedtree.ext_attributes = sext.pext_attributes;
+      ext_handler = None; }
 
 let transl_type_extension check_open env loc styext =
   reset_type_variables();
@@ -1359,6 +1360,20 @@ let transl_effect env seff =
         transl_extension_rebind env Predef.path_eff
           type_decl.type_params [typext_param] Asttypes.Public lid
   in
+  let type_default_handler { peh_cases = cases; peh_loc = loc } =
+    let ret_type =
+      match ret_type with
+      | Some t -> t
+      | None -> failwith "typedecl.ml: type_default_handler no ret_type."
+    in
+    let _ = Typecore.type_default_handler env ret_type loc cases in
+    { peh_cases = cases; peh_loc = loc }
+  in
+  let default_handler =
+    match seff.peff_handler with
+    | None -> None
+    | Some eff_handler -> Some (type_default_handler eff_handler)
+  in
   let ext =
     { ext_type_path = Predef.path_eff;
       ext_type_params = [typext_param];
@@ -1374,7 +1389,8 @@ let transl_effect env seff =
       ext_type = ext;
       ext_kind = kind;
       Typedtree.ext_loc = seff.peff_loc;
-      Typedtree.ext_attributes = seff.peff_attributes; }
+      Typedtree.ext_attributes = seff.peff_attributes;
+      ext_handler = default_handler; }
   in
   Ctype.end_def();
   (* Generalize types *)
