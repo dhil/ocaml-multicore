@@ -466,13 +466,12 @@ module Te = struct
      pext_attributes = add_docs_attrs docs (add_info_attrs info attrs);
     }
 
-  (*let effect_constructor ?(loc = !default_loc) ?(attrs = []) name kind =
+  let effect_constructor ?(loc = !default_loc) ?(attrs = []) name kind =
     {
      peff_name = name;
      peff_kind = kind;
      peff_loc = loc;
      peff_attributes = attrs;
-     peff_default_handler = None;
     }
 
   let effect_decl ?(loc = !default_loc) ?(attrs = []) ?(args = []) name res =
@@ -481,7 +480,6 @@ module Te = struct
      peff_kind = Peff_decl(args, res);
      peff_loc = loc;
      peff_attributes = attrs;
-     peff_default_handler = None;
     }
 
   let effect_rebind ?(loc = !default_loc) ?(attrs = []) name lid =
@@ -490,45 +488,9 @@ module Te = struct
      peff_kind = Peff_rebind lid;
      peff_loc = loc;
      peff_attributes = attrs;
-     peff_default_handler = None;
-    }*)
+    }
 
 end
-
-module Eff = struct
-  let declaration ?(loc = !default_loc) ?(attrs = []) ?(args = []) ?(default_handler = None) name res =
-    {
-      peff_name = name;
-      peff_kind = Peff_decl(args, res);
-      peff_loc  = loc;
-      peff_attributes = attrs;
-      peff_default_handler = default_handler;
-    }   
-
-  let rebind ?(loc = !default_loc) ?(attrs = []) name lid =
-    {
-      peff_name = name;
-      peff_kind = Peff_rebind lid;
-      peff_loc = loc;
-      peff_attributes = attrs;
-      peff_default_handler = None;
-    }
-      
-  let constructor ?(loc = !default_loc) ?(attrs = []) ?(args = []) ?res name =
-    {
-      pec_name = name;
-      pec_args = args;
-      pec_res  = res;
-      pec_loc = loc;
-      pec_attributes = attrs;
-    }
-
-  let handler ?(loc= !default_loc) cases =
-    {
-      peh_cases = cases;
-      peh_loc   = loc
-    }
-end  
 
 module Csig = struct
   let mk self fields =

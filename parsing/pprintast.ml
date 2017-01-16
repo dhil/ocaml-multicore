@@ -728,8 +728,8 @@ class printer  ()= object(self:'self)
   method exception_declaration f ext =
     pp f "@[<hov2>exception@ %a@]" self#extension_constructor ext
 
-(*  method effect_declaration f ext =
-    pp f "@[<hov2>effect@ %a@]" self#effect_constructor ext*)
+  method effect_declaration f ext =
+    pp f "@[<hov2>effect@ %a@]" self#effect_constructor ext
 
   method class_signature f { pcsig_self = ct; pcsig_fields = l ;_} =
     let class_type_field f x =
@@ -1365,15 +1365,10 @@ class printer  ()= object(self:'self)
           self#attributes x.pext_attributes
           self#longident_loc li
 
-  method effect_declaration f (x : Parsetree.effect_declaration) =
-    let handler f = function
-      | None   -> ()
-      | Some x -> pp f "@[<hv>with function%a@]" self#case_list x.peh_cases
-    in
-    pp f "@[<hov2>effect @]";
+  method effect_constructor f x =
     match x.peff_kind with
     | Peff_decl(l, r) ->
-        pp f "%s%a:@;%a@;%a" x.peff_name.txt
+        pp f "%s%a:@;%a" x.peff_name.txt
           self#attributes x.peff_attributes
           (fun f -> function
                  | [] -> self#core_type1 f r
@@ -1381,17 +1376,11 @@ class printer  ()= object(self:'self)
                            (self#list self#core_type1 ~sep:"*@;") l
                            self#core_type1 r)
           l
-          handler x.peff_default_handler
     | Peff_rebind li ->
         pp f "%s%a@;=@;%a" x.peff_name.txt
           self#attributes x.peff_attributes
           self#longident_loc li
 
-  (* FIXME : Implement pretty printing for effect_constructor *)
-  method effect_constructor (f : Format.formatter) (x : Parsetree.effect_constructor) = failwith "pprintast.ml: effect_constructor not yet implemented"; ()
-
-  method effect_handler f x = self#case_list f x.peh_cases
-    
   method case_list f l : unit =
     let aux f {pc_lhs; pc_guard; pc_rhs} =
       pp f "@;| @[<2>%a%a@;->@;%a@]"
