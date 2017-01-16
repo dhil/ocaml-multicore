@@ -437,6 +437,7 @@ and extension_constructor =
     ext_kind : extension_constructor_kind;
     ext_loc : Location.t;
     ext_attributes: attributes;
+    ext_handler: Parsetree.effect_handler option;
   }
 
 and extension_constructor_kind =

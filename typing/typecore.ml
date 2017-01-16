@@ -897,20 +897,22 @@ let unify_head_only loc env ty constr =
 (* Typing of patterns *)
 
 (* Simplified patterns for effect continuations *)
-let type_continuation_pat env expected_ty sp =
-  let loc = sp.ppat_loc in
-  match sp.ppat_desc with
-  | Ppat_any -> None
-  | Ppat_var name ->
-      let id = Ident.create name.txt in
-      let desc =
-        { val_type = expected_ty; val_kind = Val_reg;
-          Types.val_loc = loc; val_attributes = []; }
-      in
+let type_continuation_pat env expected_ty = function
+  | None -> None
+  | Some sp ->
+     let loc = sp.ppat_loc in
+     match sp.ppat_desc with
+     | Ppat_any -> None
+     | Ppat_var name ->
+        let id = Ident.create name.txt in
+        let desc =
+          { val_type = expected_ty; val_kind = Val_reg;
+            Types.val_loc = loc; val_attributes = []; }
+        in
         Some (id, desc)
-  | Ppat_extension ext ->
-      raise (Error_forward (Typetexp.error_of_extension ext))
-  | _ -> raise (Error (loc, env, Invalid_continuation_pattern))
+     | Ppat_extension ext ->
+        raise (Error_forward (Typetexp.error_of_extension ext))
+     | _ -> raise (Error (loc, env, Invalid_continuation_pattern))
 
 (* type_pat does not generate local constraints inside or patterns *)
 type type_pat_mode =
@@ -3638,17 +3640,14 @@ and type_effect_cases env ty_res loc caselist conts =
   let ty_eff = newgenty (Tconstr (Path.Pident id,[],ref Mnil)) in
   let ty_arg = Predef.type_eff ty_eff in
   let ty_cont = Predef.type_continuation ty_eff ty_res in
-  let conts =
-    List.map
-      (function
-      | Some k -> type_continuation_pat env ty_cont k
-      | None   -> None)
-      conts
-  in
+  let conts = List.map (type_continuation_pat env ty_cont) conts in
   let cases, _ = type_cases new_env ty_arg ty_res ~conts false loc caselist in
   end_def ();
   cases
 
+(* Typing of default effect handlers *)
+and type_default_handler env ty_res loc caselist = type_effect_cases env ty_res loc caselist []
+    
 (* Typing of let bindings *)
 
 and type_let ?(check = fun s -> Warnings.Unused_var s)
