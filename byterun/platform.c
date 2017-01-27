@@ -16,14 +16,15 @@ static void check_err(char* action, int err)
 
 void caml_plat_mutex_init(caml_plat_mutex* m)
 {
-#ifdef __linux__
-  pthread_mutexattr_t ma;
-  pthread_mutexattr_init(&ma);
-  pthread_mutexattr_settype(&ma, PTHREAD_MUTEX_ERRORCHECK_NP);
-  check_err("mutex_init", pthread_mutex_init(m, &ma));
-#else
+/* #ifdef __linux__ */
+/*   pthread_mutexattr_t ma; */
+/*   pthread_mutexattr_init(&ma); */
+/*   pthread_mutexattr_settype(&ma, PTHREAD_MUTEX_ERRORCHECK_NP); */
+/*   check_err("mutex_init", pthread_mutex_init(m, &ma)); */
+/* #else */
+/*   check_err("mutex_init", pthread_mutex_init(m, 0)); */
+/* #endif */
   check_err("mutex_init", pthread_mutex_init(m, 0));
-#endif
 }
 
 void caml_plat_lock(caml_plat_mutex* m)
