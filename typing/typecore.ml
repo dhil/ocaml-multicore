@@ -922,9 +922,9 @@ type type_pat_mode =
 (* type_pat propagates the expected type as well as maps for
    constructors and labels.
    Unification may update the typing environment. *)
-let rec type_pat ~constrs ~labels ~no_existentials ~mode ~env sp expected_ty =
+let rec type_pat ~constrs ~labels ~no_existentials ~mode ~env ~(allow_eff:bool) sp expected_ty =
   let type_pat ?(mode=mode) ?(env=env) =
-    type_pat ~constrs ~labels ~no_existentials ~mode ~env in
+    type_pat ~constrs ~labels ~no_existentials ~mode ~env ~allow_eff:false in
   let loc = sp.ppat_loc in
   match sp.ppat_desc with
     Ppat_any ->
@@ -1228,18 +1228,48 @@ let rec type_pat ~constrs ~labels ~no_existentials ~mode ~env sp expected_ty =
         (Tpat_type (path, lid), loc, sp.ppat_attributes) :: p.pat_extra }
   | Ppat_exception _ ->
       raise (Error (loc, !env, Exception_pattern_below_toplevel))
-  | Ppat_effect _ ->
-      raise (Error (loc, !env, Effect_pattern_below_toplevel))
+  | Ppat_effect (p, cont) ->
+     if not allow_eff then
+       raise (Error (loc, !env, Effect_pattern_below_toplevel));
+     (* Somewhat hacky. This ought to be safe by construction *)
+     let lid, sargs =
+       match p with
+       | {ppat_desc = Ppat_construct (lid, sarg)} ->
+          begin match sarg with
+          | None -> lid, []
+          | Some {ppat_desc = Ppat_tuple ps} -> lid, ps
+          | Some p -> lid, [p]
+          end
+       | _ -> assert false
+     in
+     let ecstr = Env.lookup_constructor lid.txt !env in
+     if List.length sargs <> ecstr.cstr_arity then
+       raise(Error(loc, !env, Constructor_arity_mismatch(lid.txt,
+                                                         ecstr.cstr_arity, List.length sargs)));
+     let ty_args, ty_res =
+       Ctype.instance_constructor
+         ~in_pattern:(env, get_newtype_level ()) ecstr
+     in
+     (* Check whether in handler *)
+     let args =
+       List.map2 (fun p t -> type_pat p t) sargs ty_args (* FIXME: for some reason |sargs| <> |ty_args| *)
+     in
+     rp {
+       pat_desc = Tpat_construct(lid, ecstr, args);
+       pat_loc = loc; pat_extra = [];
+       pat_type = expected_ty;
+       pat_attributes = sp.ppat_attributes;
+       pat_env = !env }
   | Ppat_extension ext ->
       raise (Error_forward (Typetexp.error_of_extension ext))
 
 let type_pat ?(allow_existentials=false) ?constrs ?labels
-    ?(lev=get_current_level()) env sp expected_ty =
+    ?(lev=get_current_level()) ~allow_eff env sp expected_ty =
   newtype_level := Some lev;
   try
     let r =
       type_pat ~no_existentials:(not allow_existentials) ~constrs ~labels
-        ~mode:Normal ~env sp expected_ty in
+        ~mode:Normal ~env ~allow_eff sp expected_ty in
     iter_pattern (fun p -> p.pat_env <- !env) r;
     newtype_level := None;
     r
@@ -1256,7 +1286,7 @@ let partial_pred ~lev env expected_ty constrs labels p =
     reset_pattern None true;
     let typed_p =
       type_pat ~allow_existentials:true ~lev
-        ~constrs ~labels (ref env) p expected_ty
+        ~constrs ~labels ~allow_eff:true (ref env) p expected_ty
     in
     backtrack snap;
     (* types are invalidated but we don't need them here *)
@@ -1291,27 +1321,27 @@ let add_pattern_variables ?check ?check_as env =
      pv env,
    get_ref module_variables)
 
-let type_pattern ~lev env spat scope expected_ty =
+let type_pattern ~lev ~allow_eff env spat scope expected_ty =
   reset_pattern scope true;
   let new_env = ref env in
-  let pat = type_pat ~allow_existentials:true ~lev new_env spat expected_ty in
+  let pat = type_pat ~allow_existentials:true ~lev ~allow_eff new_env spat expected_ty in
   let new_env, unpacks =
     add_pattern_variables !new_env
       ~check:(fun s -> Warnings.Unused_var_strict s)
       ~check_as:(fun s -> Warnings.Unused_var s) in
   (pat, new_env, get_ref pattern_force, unpacks)
 
-let type_pattern_list env spatl scope expected_tys allow =
+let type_pattern_list ~allow_eff env spatl scope expected_tys allow =
   reset_pattern scope allow;
   let new_env = ref env in
-  let patl = List.map2 (type_pat new_env) spatl expected_tys in
+  let patl = List.map2 (type_pat ~allow_eff new_env) spatl expected_tys in
   let new_env, unpacks = add_pattern_variables !new_env in
   (patl, new_env, get_ref pattern_force, unpacks)
 
 let type_class_arg_pattern cl_num val_env met_env l spat =
   reset_pattern None false;
   let nv = newvar () in
-  let pat = type_pat (ref val_env) spat nv in
+  let pat = type_pat ~allow_eff:false (ref val_env) spat nv in
   if has_variants pat then begin
     Parmatch.pressure_variants val_env [pat];
     iter_pattern finalize_variant pat
@@ -1345,7 +1375,7 @@ let type_self_pattern cl_num privty val_env met_env par_env spat =
   in
   reset_pattern None false;
   let nv = newvar() in
-  let pat = type_pat (ref val_env) spat nv in
+  let pat = type_pat ~allow_eff:false (ref val_env) spat nv in
   List.iter (fun f -> f()) (get_ref pattern_force);
   let meths = ref Meths.empty in
   let vars = ref Vars.empty in
@@ -1969,9 +1999,9 @@ and type_expect_ ?in_function env sexp ty_expected =
          empty pattern matching can be generated by Camlp4 with its
          revised syntax.  Let's accept it for backward compatibility. *)
       let val_cases, partial =
-        type_cases env arg.exp_type ty_expected true loc val_caselist in
+        type_cases env ~allow_eff:false arg.exp_type ty_expected true loc val_caselist in
       let exn_cases, _ =
-        type_cases env Predef.type_exn ty_expected false loc exn_caselist in
+        type_cases env ~allow_eff:false Predef.type_exn ty_expected false loc exn_caselist in
       let eff_cases =
         match eff_caselist with
         | [] -> []
@@ -1996,7 +2026,7 @@ and type_expect_ ?in_function env sexp ty_expected =
       in
       let exn_caselist, eff_caselist, eff_conts = split_cases [] [] [] caselist in
       let exn_cases, _ =
-        type_cases env Predef.type_exn ty_expected false loc exn_caselist in
+        type_cases ~allow_eff:false env Predef.type_exn ty_expected false loc exn_caselist in
       let eff_cases =
         match eff_caselist with
         | [] -> []
@@ -2767,7 +2797,7 @@ and type_function ?in_function loc attrs env ty_expected l caselist =
     generalize_structure ty_res
   end;
   let cases, partial =
-    type_cases ~in_function:(loc_fun,ty_fun) env ty_arg ty_res
+    type_cases ~allow_eff:false ~in_function:(loc_fun,ty_fun) env ty_arg ty_res
       true loc caselist in
   let not_function ty =
     let ls, tvar = list_labels env ty in
@@ -3463,7 +3493,7 @@ and type_statement env sexp =
 
 (* Typing of match cases *)
 
-and type_cases ?in_function env ty_arg ty_res ?conts partial_flag loc caselist =
+and type_cases ?in_function ~allow_eff env ty_arg ty_res ?conts partial_flag loc caselist =
   (* ty_arg is _fully_ generalized *)
   let patterns = List.map (fun {pc_lhs=p} -> p) caselist in
   let erase_either =
@@ -3512,7 +3542,7 @@ and type_cases ?in_function env ty_arg ty_res ?conts partial_flag loc caselist =
             if !Clflags.principal || erase_either
             then Some false else None in
           let ty_arg = instance ?partial env ty_arg in
-          type_pattern ~lev env pc_lhs scope ty_arg
+          type_pattern ~lev ~allow_eff env pc_lhs scope ty_arg
         in
         pattern_force := force @ !pattern_force;
         let pat =
@@ -3641,7 +3671,7 @@ and type_effect_cases env ty_res loc caselist conts =
   let ty_arg = Predef.type_eff ty_eff in
   let ty_cont = Predef.type_continuation ty_eff ty_res in
   let conts = List.map (type_continuation_pat env ty_cont) conts in
-  let cases, _ = type_cases new_env ty_arg ty_res ~conts false loc caselist in
+  let cases, _ = type_cases ~allow_eff:true new_env ty_arg ty_res ~conts false loc caselist in
   end_def ();
   cases
 
@@ -3684,7 +3714,7 @@ and type_let ?(check = fun s -> Warnings.Unused_var s)
       spat_sexp_list in
   let nvs = List.map (fun _ -> newvar ()) spatl in
   let (pat_list, new_env, force, unpacks) =
-    type_pattern_list env spatl scope nvs allow in
+    type_pattern_list ~allow_eff:false env spatl scope nvs allow in
   let is_recursive = (rec_flag = Recursive) in
   (* If recursive, first unify with an approximation of the expression *)
   if is_recursive then

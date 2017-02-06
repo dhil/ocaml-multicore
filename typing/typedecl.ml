@@ -1360,19 +1360,22 @@ let transl_effect env seff =
         transl_extension_rebind env Predef.path_eff
           type_decl.type_params [typext_param] Asttypes.Public lid
   in
-  let type_default_handler { peh_cases = cases; peh_loc = loc } =
+  let type_default_handler env { peh_cases = cases; peh_loc = loc } =
     let ret_type =
       match ret_type with
       | Some t -> t
       | None -> failwith "typedecl.ml: type_default_handler no ret_type."
     in
+    Ctype.init_def(Ident.current_time());
+    Ctype.begin_def();
     let _ = Typecore.type_default_handler env ret_type loc cases in
+    Ctype.end_def();
     { peh_cases = cases; peh_loc = loc }
   in
-  let default_handler =
+  let default_handler env =
     match seff.peff_handler with
     | None -> None
-    | Some eff_handler -> Some (type_default_handler eff_handler)
+    | Some eff_handler -> Some (type_default_handler env eff_handler)
   in
   let ext =
     { ext_type_path = Predef.path_eff;
@@ -1390,7 +1393,7 @@ let transl_effect env seff =
       ext_kind = kind;
       Typedtree.ext_loc = seff.peff_loc;
       Typedtree.ext_attributes = seff.peff_attributes;
-      ext_handler = default_handler; }
+      ext_handler = None; }
   in
   Ctype.end_def();
   (* Generalize types *)
@@ -1402,6 +1405,19 @@ let transl_effect env seff =
       raise (Error(ext.ext_loc, Unbound_type_var_ext(ty, ext)))
   | None -> ()
   end;
+  (* Add the extension prior to typing default handler
+     FIXME : Clean this up; avoid code duplication. *)
+  let newenv = Env.add_extension ~check:true text.ext_id ext env in
+  let default_handler = default_handler newenv in
+  let text =
+    { ext_id = id;
+      ext_name = seff.peff_name;
+      ext_type = ext;
+      ext_kind = kind;
+      Typedtree.ext_loc = seff.peff_loc;
+      Typedtree.ext_attributes = seff.peff_attributes;
+      ext_handler = default_handler; }
+  in
   let newenv = Env.add_extension ~check:true text.ext_id ext env in
     text, newenv
 
