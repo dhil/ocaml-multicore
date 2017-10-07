@@ -302,7 +302,11 @@ let core_type sub ct =
   match ct.ctyp_desc with
   | Ttyp_any -> ()
   | Ttyp_var _s -> ()
+<<<<<<< HEAD
   | Ttyp_arrow (_label, ct1, ct2) ->
+=======
+  | Ttyp_arrow (_label, ct1, _eft, ct2) ->
+>>>>>>> 12f170e... Add effects to arrow syntax
       sub # core_type ct1;
       sub # core_type ct2
   | Ttyp_tuple list -> List.iter (sub # core_type) list

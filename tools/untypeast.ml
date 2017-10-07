@@ -607,8 +607,14 @@ and untype_core_type ct =
   let desc = match ct.ctyp_desc with
       Ttyp_any -> Ptyp_any
     | Ttyp_var s -> Ptyp_var s
+<<<<<<< HEAD
     | Ttyp_arrow (label, ct1, ct2) ->
         Ptyp_arrow (label, untype_core_type ct1, untype_core_type ct2)
+=======
+    | Ttyp_arrow (label, ct1, eft, ct2) ->
+        Ptyp_arrow (label, untype_core_type ct1,
+                    untype_effect_type eft, untype_core_type ct2)
+>>>>>>> 12f170e... Add effects to arrow syntax
   | Ttyp_tuple list -> Ptyp_tuple (List.map untype_core_type list)
     | Ttyp_constr (_path, lid, list) ->
         Ptyp_constr (lid,
@@ -643,6 +649,16 @@ and untype_row_field rf =
       Rtag (label, attrs, bool, List.map untype_core_type list)
   | Tinherit ct -> Rinherit (untype_core_type ct)
 
+<<<<<<< HEAD
+=======
+and untype_effect_type eft =
+  match eft.eft_desc with
+  | None -> None
+  | Some desc ->
+      Some { pefd_constrs = List.map fst desc.efd_constrs;
+             pefd_var = desc.efd_var; }
+
+>>>>>>> 12f170e... Add effects to arrow syntax
 and is_self_pat = function
   | { pat_desc = Tpat_alias(_pat, id, _) } ->
       string_is_prefix "self-" (Ident.name id)

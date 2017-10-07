@@ -225,24 +225,37 @@ class printer  ()= object(self:'self)
 
   method type_with_label f (label,({ptyp_desc;_}as c) ) =
     match label with
-    | "" ->  self#core_type1 f c (* otherwise parenthesize *)
-    | s  ->
-        if s.[0]='?' then
-          match ptyp_desc with
-          | Ptyp_constr ({txt;_}, l) ->
-              assert (is_predef_option txt);
-              pp f "%s:%a" s (self#list self#core_type1) l
-          | _ -> failwith "invalid input in print_type_with_label"
-        else pp f "%s:%a" s self#core_type1 c
+    | Nolabel ->  self#core_type1 f c (* otherwise parenthesize *)
+    | Labelled s -> pp f "%s:%a" s self#core_type1 c
+    | Optional s -> pp f "?%s:%a" s self#core_type1 c
+
+  method arrow f x =
+    let constructors f x =
+      self#list ~sep:" | " self#longident_loc f x
+    in
+    match x with
+    | None -> pp f "->"
+    | Some e  ->
+        match e.pefd_constrs, e.pefd_var with
+        | [], None -> pp f "=>"
+        | constrs, None ->
+            pp f "-[%a]->" constructors constrs
+        | [], Some { txt = "~" } -> pp f "~>"
+        | constrs, Some { txt = "~" } ->
+            pp f "~[%a]~>" constructors constrs
+        | [], Some { txt = s } -> pp f "-[!%s]->" s
+        | constrs, Some { txt = s } ->
+            pp f "-[%a|!%s]->" constructors constrs s
+
   method core_type f x =
     if x.ptyp_attributes <> [] then begin
       pp f "((%a)%a)" self#core_type {x with ptyp_attributes=[]}
         self#attributes x.ptyp_attributes
     end
     else match x.ptyp_desc with
-    | Ptyp_arrow (l, ct1, ct2) ->
-        pp f "@[<2>%a@;->@;%a@]" (* FIXME remove parens later *)
-          self#type_with_label (l,ct1) self#core_type ct2
+    | Ptyp_arrow (l, ct1, eft, ct2) ->
+        pp f "@[<2>%a@;%a@;%a@]" (* FIXME remove parens later *)
+          self#type_with_label (l,ct1) self#arrow eft self#core_type ct2
     | Ptyp_alias (ct, s) ->
         pp f "@[<2>%a@;as@;'%s@]" self#core_type1 ct s
     | Ptyp_poly (sl, ct) ->

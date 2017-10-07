@@ -20,8 +20,13 @@ open Lambda
 let scrape env ty =
   (Ctype.repr (Ctype.expand_head_opt env (Ctype.correct_levels ty))).desc
 
-let has_base_type exp base_ty_path =
-  match scrape exp.exp_env exp.exp_type with
+let is_function_type env ty =
+  match scrape env ty with
+  | Tarrow (_, lhs, _, rhs, _) -> Some (lhs, rhs)
+  | _ -> None
+
+let is_base_type env ty base_ty_path =
+  match scrape env ty with
   | Tconstr(p, _, _) -> Path.same p base_ty_path
   | _ -> false
 
