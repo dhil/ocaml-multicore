@@ -96,11 +96,11 @@ module Exp:
     val constant: ?loc:loc -> ?attrs:attrs -> constant -> expression
     val let_: ?loc:loc -> ?attrs:attrs -> rec_flag -> value_binding list
               -> expression -> expression
-    val fun_: ?loc:loc -> ?attrs:attrs -> label -> expression option -> pattern
+    val fun_: ?loc:loc -> ?attrs:attrs -> arg_label -> expression option -> pattern
               -> expression -> expression
     val function_: ?loc:loc -> ?attrs:attrs -> case list -> expression
     val apply: ?loc:loc -> ?attrs:attrs -> expression
-               -> (label * expression) list -> expression
+               -> (arg_label * expression) list -> expression
     val match_: ?loc:loc -> ?attrs:attrs -> expression -> case list
                 -> expression
     val try_: ?loc:loc -> ?attrs:attrs -> expression -> case list -> expression
@@ -322,7 +322,7 @@ module Cty:
 
     val constr: ?loc:loc -> ?attrs:attrs -> lid -> core_type list -> class_type
     val signature: ?loc:loc -> ?attrs:attrs -> class_signature -> class_type
-    val arrow: ?loc:loc -> ?attrs:attrs -> label -> core_type -> class_type -> class_type
+    val arrow: ?loc:loc -> ?attrs:attrs -> arg_label -> core_type -> class_type -> class_type
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> class_type
   end
 
@@ -350,8 +350,8 @@ module Cl:
 
     val constr: ?loc:loc -> ?attrs:attrs -> lid -> core_type list -> class_expr
     val structure: ?loc:loc -> ?attrs:attrs -> class_structure -> class_expr
-    val fun_: ?loc:loc -> ?attrs:attrs -> label -> expression option -> pattern -> class_expr -> class_expr
-    val apply: ?loc:loc -> ?attrs:attrs -> class_expr -> (label * expression) list -> class_expr
+    val fun_: ?loc:loc -> ?attrs:attrs -> arg_label -> expression option -> pattern -> class_expr -> class_expr
+    val apply: ?loc:loc -> ?attrs:attrs -> class_expr -> (arg_label * expression) list -> class_expr
     val let_: ?loc:loc -> ?attrs:attrs -> rec_flag -> value_binding list -> class_expr -> class_expr
     val constraint_: ?loc:loc -> ?attrs:attrs -> class_expr -> class_type -> class_expr
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> class_expr

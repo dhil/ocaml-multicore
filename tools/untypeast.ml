@@ -43,6 +43,18 @@ let rec lident_of_path path =
     | Path.Papply (p1, p2) ->
         Longident.Lapply (lident_of_path p1, lident_of_path p2)
 
+(* (\** Try a name [$name$0], check if it's free, if not, increment and repeat. *\)
+ * let fresh_name s env =
+ *   let rec aux i =
+ *     let name = s ^ string_of_int i in
+ *     try
+ *       let _ = Env.lookup_value (Longident.Lident name) env in
+ *       name
+ *     with
+ *       | Not_found -> aux (i+1)
+ *   in
+ *   aux 0 *)
+
 let rec untype_structure str =
   List.map untype_structure_item str.str_items
 
@@ -308,10 +320,15 @@ and untype_expression exp =
           untype_expression exp)
     | Texp_function (label, [{c_lhs=p; c_guard=None; c_rhs=e}], _) ->
         Pexp_fun (label, None, untype_pattern p, untype_expression e)
-    | Texp_function ("", cases, _) ->
+    | Texp_function (Nolabel, cases, _) ->
         Pexp_function (untype_cases cases)
-    | Texp_function _ ->
-        assert false
+    | Texp_function _ -> assert false
+    (* (\* Mix of both, we generate `fun ~label:$name$ -> match $name$ with ...` *\)
+     * | Texp_function (Labelled s | Optional s as label, cases, _) ->
+     *    let name = fresh_name s exp.exp_env in
+     *    Pexp_fun (label, None, Pat.var ~loc {loc;txt = name },
+     *              Exp.match_ ~loc (Exp.ident ~loc {loc;txt= Lident name})
+     *                (untype_cases cases)) *)
     | Texp_apply (exp, list) ->
         Pexp_apply (untype_expression exp,
           List.fold_right (fun (label, expo, _) list ->
@@ -607,14 +624,9 @@ and untype_core_type ct =
   let desc = match ct.ctyp_desc with
       Ttyp_any -> Ptyp_any
     | Ttyp_var s -> Ptyp_var s
-<<<<<<< HEAD
-    | Ttyp_arrow (label, ct1, ct2) ->
-        Ptyp_arrow (label, untype_core_type ct1, untype_core_type ct2)
-=======
     | Ttyp_arrow (label, ct1, eft, ct2) ->
         Ptyp_arrow (label, untype_core_type ct1,
                     untype_effect_type eft, untype_core_type ct2)
->>>>>>> 12f170e... Add effects to arrow syntax
   | Ttyp_tuple list -> Ptyp_tuple (List.map untype_core_type list)
     | Ttyp_constr (_path, lid, list) ->
         Ptyp_constr (lid,
@@ -649,8 +661,6 @@ and untype_row_field rf =
       Rtag (label, attrs, bool, List.map untype_core_type list)
   | Tinherit ct -> Rinherit (untype_core_type ct)
 
-<<<<<<< HEAD
-=======
 and untype_effect_type eft =
   match eft.eft_desc with
   | None -> None
@@ -658,7 +668,6 @@ and untype_effect_type eft =
       Some { pefd_constrs = List.map fst desc.efd_constrs;
              pefd_var = desc.efd_var; }
 
->>>>>>> 12f170e... Add effects to arrow syntax
 and is_self_pat = function
   | { pat_desc = Tpat_alias(_pat, id, _) } ->
       string_is_prefix "self-" (Ident.name id)
@@ -678,14 +687,14 @@ and untype_class_field cf =
         Pcf_method (lab, priv, Cfk_virtual (untype_core_type cty))
     | Tcf_method (lab, priv, Tcfk_concrete (o, exp)) ->
         let remove_fun_self = function
-          | { exp_desc = Texp_function("", [case], _) } when is_self_pat case.c_lhs && case.c_guard = None -> case.c_rhs
+          | { exp_desc = Texp_function(Nolabel, [case], _) } when is_self_pat case.c_lhs && case.c_guard = None -> case.c_rhs
           | e -> e
         in
         let exp = remove_fun_self exp in
         Pcf_method (lab, priv, Cfk_concrete (o, untype_expression exp))
     | Tcf_initializer exp ->
         let remove_fun_self = function
-          | { exp_desc = Texp_function("", [case], _) } when is_self_pat case.c_lhs && case.c_guard = None -> case.c_rhs
+          | { exp_desc = Texp_function(Nolabel, [case], _) } when is_self_pat case.c_lhs && case.c_guard = None -> case.c_rhs
           | e -> e
         in
         let exp = remove_fun_self exp in

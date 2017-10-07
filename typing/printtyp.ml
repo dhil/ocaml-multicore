@@ -122,6 +122,11 @@ let print_name ppf = function
     None -> fprintf ppf "None"
   | Some name -> fprintf ppf "\"%s\"" name
 
+let string_of_label = function
+  | Nolabel -> ""
+  | Labelled s -> s
+  | Optional s -> "?"^s
+
 let visited = ref []
 let rec raw_type ppf ty =
   let ty = safe_repr [] ty in
@@ -538,7 +543,7 @@ let reset_and_mark_loops_list tyl =
 (* Disabled in classic mode when printing an unification error *)
 let print_labels = ref true
 let print_label ppf l =
-  if !print_labels && l <> "" || is_optional l then fprintf ppf "%s:" l
+  if !print_labels && l <> Nolabel || is_optional l then fprintf ppf "%s:" (string_of_label l)
 
 let rec tree_of_typexp sch ty =
   let ty = repr ty in
@@ -554,7 +559,7 @@ let rec tree_of_typexp sch ty =
     | Tarrow(l, ty1, Placeholder, ty2, _) ->
         let pr_arrow l ty1 ty2 =
           let lab =
-            if !print_labels && l <> "" || is_optional l then l else ""
+            if !print_labels && l <> Nolabel || is_optional l then string_of_label l else ""
           in
           let t1 =
             if is_optional l then
@@ -1043,7 +1048,7 @@ let rec tree_of_class_type sch params =
       in
       Octy_signature (self_ty, List.rev csil)
   | Cty_arrow (l, ty, cty) ->
-      let lab = if !print_labels && l <> "" || is_optional l then l else "" in
+      let lab = if !print_labels || is_optional l then string_of_label l else "" in
       let ty =
        if is_optional l then
          match (repr ty).desc with

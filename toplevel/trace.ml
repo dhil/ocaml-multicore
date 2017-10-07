@@ -58,7 +58,7 @@ let print_label ppf l = if l <> "" then fprintf ppf "%s:" l
 
 let rec instrument_result env name ppf clos_typ =
   match (Ctype.repr(Ctype.expand_head env clos_typ)).desc with
-  | Tarrow(l, t1, t2, _) ->
+  | Tarrow(l, t1, _eft, t2, _) ->
       let starred_name =
         match name with
         | Lident s -> Lident(s ^ "*")

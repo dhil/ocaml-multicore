@@ -30,6 +30,9 @@ let is_base_type env ty base_ty_path =
   | Tconstr(p, _, _) -> Path.same p base_ty_path
   | _ -> false
 
+let has_base_type exp base_ty_path =
+  is_base_type exp.exp_env exp.exp_type base_ty_path
+
 let maybe_pointer_type env ty =
   match scrape env ty with
   | Tconstr(p, args, abbrev) ->
