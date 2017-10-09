@@ -39,7 +39,47 @@ let free_vars ty =
   unmark_type ty;
   !ret
 
-let constructor_descrs ty_res cstrs priv =
+let newgenconstr path sort tyl = newgenty (Tconstr (path, tyl, sort, ref Mnil))
+
+let constructor_args cd_args cd_res path rep =
+  let tyl =
+    match cd_args with
+    | Cstr_tuple l -> l
+    | Cstr_record l -> List.map (fun l -> l.ld_type) l
+  in
+  let existentials =
+    match cd_res with
+    | None -> []
+    | Some type_ret ->
+        let arg_vars_set = free_vars (newgenty (Ttuple tyl)) in
+        let res_vars = free_vars type_ret in
+        TypeSet.elements (TypeSet.diff arg_vars_set res_vars)
+  in
+  match cd_args with
+  | Cstr_tuple l -> existentials, l, None
+  | Cstr_record lbls ->
+      let arg_vars_set = free_vars ~param:true (newgenty (Ttuple tyl)) in
+      let type_params = TypeSet.elements arg_vars_set in
+      let tdecl =
+        {
+          type_params;
+          type_arity = List.length type_params;
+          type_kind = Type_record (lbls, rep);
+          type_sort = Stype;
+          type_private = Public;
+          type_manifest = None;
+          type_variance = List.map (fun _ -> Variance.full) type_params;
+          type_newtype_level = None;
+          type_loc = Location.none;
+          type_attributes = [];
+        }
+      in
+      existentials,
+      [ newgenconstr path Stype type_params ],
+      Some tdecl
+
+let constructor_descrs ty_path decl cstrs =
+  let ty_res = newgenconstr ty_path decl.type_sort decl.type_params in
   let num_consts = ref 0 and num_nonconsts = ref 0  and num_normal = ref 0 in
   List.iter
     (fun {cd_args; cd_res; _} ->
@@ -90,8 +130,7 @@ let extension_descr path_ext ext =
   let ty_res =
     match ext.ext_ret_type with
         Some type_ret -> type_ret
-      | None ->
-          newgenty (Tconstr(ext.ext_type_path, ext.ext_type_params, ref Mnil))
+      | None -> newgenconstr ext.ext_type_path Stype ext.ext_type_params
   in
   let tag = Cstr_extension(path_ext, ext.ext_args = []) in
   let existentials =
@@ -164,3 +203,16 @@ let rec find_constr tag num_const num_nonconst = function
 
 let find_constr_by_tag tag cstrlist =
   find_constr tag 0 0 cstrlist
+
+let constructors_of_type ty_path decl =
+  match decl.type_kind with
+  | Type_variant cstrs -> constructor_descrs ty_path decl cstrs
+  | Type_record _ | Type_abstract | Type_open -> []
+
+let labels_of_type ty_path decl =
+  match decl.type_kind with
+  | Type_record(labels, rep) ->
+      label_descrs (newgenconstr ty_path decl.type_sort decl.type_params)
+        labels rep decl.type_private
+  | Type_variant _ | Type_abstract | Type_open -> []
+

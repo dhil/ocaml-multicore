@@ -899,7 +899,7 @@ and transl_exp0 e =
           | Tvariant _
               -> transl_exp e
           (* optimize predefined types (excepted float) *)
-          | Tconstr(_,_,_) ->
+          | Tconstr(_,_,_,_) ->
               if has_base_type e Predef.path_int
                 || has_base_type e Predef.path_char
                 || has_base_type e Predef.path_string
@@ -915,6 +915,7 @@ and transl_exp0 e =
               then transl_exp e
               else
                 Lprim(Pmakeblock(Obj.forward_tag, Immutable), [transl_exp e])
+          | Teffect _ | Tenil -> assert false
           end
       (* other cases compile to a lazy block holding a function *)
       | _ ->
@@ -1127,7 +1128,17 @@ and transl_record all_labels repres lbl_expr_list opt_init_expr =
       with Not_constant ->
         match repres with
           Record_regular -> Lprim(Pmakeblock(0, mut), ll)
-        | Record_float -> Lprim(Pmakearray Pfloatarray, ll) in
+        | Record_inlined tag -> Lprim(Pmakeblock(tag, mut), ll)
+        | Record_float -> Lprim(Pmakearray Pfloatarray, ll)
+        | Record_extension ->
+            let path =
+              match all_labels.(0).lbl_res.desc with
+              | Tconstr(p, _, _, _) -> p
+              | _ -> assert false
+            in
+            let slot = transl_path env path in
+            Lprim(Pmakeblock(0, mut), slot :: ll)
+    in
     begin match opt_init_expr with
       None -> lam
     | Some init_expr -> Llet(Strict, init_id, transl_exp init_expr, lam)
