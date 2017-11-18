@@ -869,7 +869,7 @@ and transl_exp0 e =
       if is_raise then
         Lprim(Praise Raise_notrace, [event_after e arg])
       else
-        Lprim(Pperform, [event_after e arg])
+        Lprim(Pperform e.exp_loc, [event_after e arg])
   | Texp_send(_, _, Some exp) -> transl_exp exp
   | Texp_send(expr, met, None) ->
       let obj = transl_exp expr in
@@ -1257,19 +1257,13 @@ and transl_handler e body val_caselist exn_caselist eff_caselist cont_caselist =
     | Lfunction _ -> true
     | _ -> false
   in
-  let is_pure = function
-    | Lconst _ -> true
-    | Lvar _ -> true
-    | Lfunction _ -> true
-    | _ -> false
-  in
   let (body_fun, arg) =
     match transl_exp body with
     | Lapply (fn, [arg], _) when is_pure fn && is_pure arg ->
        (fn, arg)
     | body ->
        let param = Ident.create "param" in
-       (Lfunction (Curried, [param], body), 
+       (Lfunction (Curried, [param], body),
         Lconst(Const_base(Const_int 0)))
   in
     Lprim(Presume e.exp_loc, [Lprim(prim_alloc_stack, [val_fun; exn_fun; eff_fun]);
@@ -1305,9 +1299,9 @@ let delegate_effect_handler handler_id =
       (Ltrywith
          (Lstaticraise (static_exception_id,
             [Lapply(Lvar handler_id, [Lvar eff_id], Location.none)]),
-         exn_id, Lprim(Presume, [Lvar cont_id; discontinue; Lvar exn_id])),
+         exn_id, Lprim(Presume Location.none, [Lvar cont_id; discontinue; Lvar exn_id])),
       (static_exception_id, [val_id]),
-      Lprim(Presume, [Lvar cont_id; continue; Lvar val_id]))
+      Lprim(Presume Location.none, [Lvar cont_id; continue; Lvar val_id]))
   in
   Lfunction(kind, params, body)
 
